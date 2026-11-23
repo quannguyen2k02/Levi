@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Mã QR Chi Tiết - Sửa Lỗi Nhấp Nháy</title>
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            padding-top: 50px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .qr-container {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .qr-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .qr-timestamp {
+            font-size: 1.1em;
+            color: #777;
+            margin-bottom: 15px;
+        }
+
+        #qrcode {
+            width: 250px; /* Kích thước hiển thị mong muốn */
+            height: 250px; /* Kích thước hiển thị mong muốn */
+            
+            /* Đảm bảo hình ảnh được scale sắc nét */
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -o-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 17px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .status-message {
+            margin-top: 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: green;
+        }
+
+        .refresh-text {
+            color: #007bff;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mã QR Truy Cập Chi Tiết</h1>
+
+    <div class="qr-container">
+        <div class="qr-header" id="qrHeader"></div>
+        <div class="qr-timestamp" id="qrTimestamp"></div>
+        <div id="qrcode">
+            </div>
+        <span class="refresh-text" onclick="generateQRCode(event)">刷新二维码 (Làm mới mã QR)</span>
+        <div class="status-message">
+            已生效 (Đã có hiệu lực)
+            <br>
+            <span id="countdown"></span>
+        </div>
+    </div>
+
+    <script>
+        let countdownInterval;
+        let qrCodeInstance; // Biến để lưu trữ đối tượng QRCode
+
+        function generateQRCode(event) {
+            if (event && event.currentTarget) {
+                event.currentTarget.blur(); // Bỏ focus khỏi nút
+            }
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+            const employeeId = "V2502020040";
+            const employeeName = "Marc Nguyen";
+            // Sử dụng thời gian hiện tại chính xác để tạo token duy nhất và dễ theo dõi
+            const uniqueToken = Date.now().toString(36) + Math.random().toString(36).substring(2); 
+            const accessData = `https://yourcompany.com/access?id=${employeeId}&name=${encodeURIComponent(employeeName)}&time=${encodeURIComponent(formattedTime)}&token=${uniqueToken}`;
+
+            document.getElementById('qrHeader').textContent = `${employeeId} (${employeeName})`;
+            document.getElementById('qrTimestamp').textContent = formattedTime;
+
+            const qrcodeElement = document.getElementById('qrcode');
+
+            // Kiểm tra nếu đối tượng QR code đã tồn tại
+            if (qrCodeInstance) {
+                // Nếu tồn tại, chỉ cần cập nhật dữ liệu
+                qrCodeInstance.clear(); // Xóa mã QR hiện tại
+                qrCodeInstance.makeCode(accessData); // Tạo mã QR mới với dữ liệu mới
+            } else {
+                // Nếu chưa tồn tại, tạo mới đối tượng QRCode
+                qrCodeInstance = new QRCode(qrcodeElement, {
+                    text: accessData,
+                    width: 230, // Vẫn giữ kích thước này cho độ chi tiết gốc
+                    height: 230, // Vẫn giữ kích thước này cho độ chi tiết gốc
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+
+            // Bắt đầu đếm ngược
+            startCountdown(30); // Ví dụ: QR code có hiệu lực trong 30 giây
+        }
+
+        function startCountdown(duration) {
+            let timer = duration;
+            const countdownDisplay = document.getElementById('countdown');
+
+            if (countdownInterval) {
+                clearInterval(countdownInterval); // Xóa bộ đếm ngược cũ nếu có
+            }
+
+            countdownInterval = setInterval(() => {
+                const minutes = Math.floor(timer / 60);
+                const seconds = timer % 60;
+
+                countdownDisplay.textContent = `${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+                if (--timer < 0) {
+                    clearInterval(countdownInterval);
+                    countdownDisplay.textContent = 'Hết hiệu lực';
+                    // Tùy chọn: Tự động tạo lại mã QR khi hết thời gian
+                    // generateQRCode(); 
+                }
+            }, 1000);
+        }
+
+        // Tự động tạo mã QR khi trang tải lần đầu
+        document.addEventListener('DOMContentLoaded', generateQRCode);
+    </script>
+</body>
+</html>
